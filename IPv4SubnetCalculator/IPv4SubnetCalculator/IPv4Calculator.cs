@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -31,7 +32,7 @@ namespace IPv4SubnetCalculator
         //List of info for each subnet.
         List<SubnetInfo> subnets = new List<SubnetInfo>();
 
-        int totalAddressesInNetwork = 0;
+        Int64 totalAddressesInNetwork = 0;
 
         /// <summary>
         /// Constructor
@@ -115,7 +116,7 @@ namespace IPv4SubnetCalculator
 
 
             //Clears screen, and writes the base network information, as well as possible host count.
-            totalAddressesInNetwork = (int)Math.Pow(2, (32 - basePrefix));
+            totalAddressesInNetwork = (Int64)Math.Pow(2, (32 - basePrefix));
 
             Console.Clear();
             PrintBaseNetworkInfo();
