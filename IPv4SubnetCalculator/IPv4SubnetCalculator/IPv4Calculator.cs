@@ -5,6 +5,9 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
+/// <summary>
+/// Used to store information about the subnets that are being calculated.
+/// </summary>
 public struct SubnetInfo
 {
     public string name;
