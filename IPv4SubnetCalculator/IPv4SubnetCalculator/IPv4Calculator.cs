@@ -9,6 +9,7 @@ public struct SubnetInfo
 {
     public string name;
     public int hosCount;
+    public int predictedAssignedRange;
 }
 
 namespace IPv4SubnetCalculator
@@ -27,6 +28,8 @@ namespace IPv4SubnetCalculator
         //List of info for each subnet.
         List<SubnetInfo> subnets = new List<SubnetInfo>();
 
+        int possibleHostCount = 0;
+
         /// <summary>
         /// Constructor
         /// </summary>
@@ -41,25 +44,65 @@ namespace IPv4SubnetCalculator
         public void EnterNetworkInfo()
         {
             //Asks the user to enter base network id, and gets the input from the console.
-            Console.Write("Enter base network ID, and prefix (such as 192.168.182.0/24)... ");
-            string input = Console.ReadLine();
+            //Console.Write("Enter base network ID, and prefix (such as 192.168.182.0/24)... ");
+            string input = "";
 
-            //Removes possible white space.
-            input.Replace(" ", "");
 
             //Splits the input into ip address, and subnet prefix
-            string[] parts = input.Split('/');
+            string[] parts = { };
+
+            //Stores the base network prefix
+            basePrefix = -1;
+
+            string baseNetowkrIpAddress = "";
+
+            while(!IsEnteredBaseNetworkValid(baseNetowkrIpAddress, basePrefix))
+            {
+                Console.Clear();
+
+                if(parts.Length > 0)
+                {
+                    if (!IsEnteredIpValid(parts[0]))
+                    {
+                        Console.WriteLine("Entered IP-address was invalid.");
+                    }
+
+                    if (!IsValidPrefix(basePrefix))
+                    {
+                        Console.WriteLine("Entered prefix was invalid.");
+                    }
+                }
+
+                //Asks the user to enter base network id, and gets the input from the console.
+                Console.Write("Enter base network ID, and prefix (such as 192.168.182.0/24)... ");
+                input = Console.ReadLine();
+
+                //Removes possible white space.
+                input.Replace(" ", "");
+
+                //Splits the input into ip address, and subnet prefix
+                parts = input.Split('/');
+
+
+                baseNetowkrIpAddress = parts[0];
+
+                if (parts.Length >= 2)
+                {
+                    //Stores the base network prefix
+                    basePrefix = int.Parse(parts[1].Replace(" ", ""));
+                }
+            }
 
             //Stores the base network id.
             baseId = IpToInt(IPAddress.Parse(parts[0].Replace(" ", "")));
 
-            //Stores the base network prefix
-            basePrefix = int.Parse(parts[1].Replace(" ", ""));
-
+    
             //Clears screen, and writes the base network information, as well as possible host count.
+            possibleHostCount = (int)Math.Pow(2, (32 - basePrefix)) - 2;
+
             Console.Clear();
             PrintBaseNetworkInfo();
-            Console.WriteLine($"\nPossible number of hosts: {(int)Math.Pow(2, (32 - basePrefix)) - 2}.\n");
+            Console.WriteLine($"\nPossible number of hosts: {possibleHostCount}.\n");
         }
 
         /// <summary>
@@ -78,17 +121,15 @@ namespace IPv4SubnetCalculator
             for (int i = 0; i < numberOfSubnets; i++)
             {
                 //Cleans up screen.
-                Console.Clear();
-                PrintBaseNetworkInfo();
+                PrintSubnetSetUpInfo(i);
 
-                Console.WriteLine($"\nEnter info for subnet ({i + 1}/{numberOfSubnets})...");
-
-                for (int y = 0; y < subnets.Count(); y++)
+                if(possibleHostCount == 0)
                 {
-                    Console.WriteLine($"  {y + 1}. {subnets[y].name,-10}{subnets[y].hosCount}");
+                    Console.WriteLine("No more possible hosts available on the network.");
+                    Console.WriteLine("Press any button to go to calculation.");
+                    Console.ReadKey();
+                    break;
                 }
-
-                Console.WriteLine();
 
                 //Temporarily stores subnet information, until it's ready to be added to the list.
                 SubnetInfo info;
@@ -96,13 +137,34 @@ namespace IPv4SubnetCalculator
                 //Ask user to enter name of the new subnet.
                 Console.Write("Enter subnet name... ");
                 info.name = Console.ReadLine();
+                info.hosCount = 0;
+                info.predictedAssignedRange = 0;
 
-                //Asks user to enter the number of hosts, for the new subnet.
-                Console.Write("Enter number of hosts... ");
-                info.hosCount = int.Parse(Console.ReadLine());
+
+                do
+                {
+                    if(!IsHostWishPossible(info.hosCount))
+                    {
+                        Console.Clear();
+                        PrintSubnetSetUpInfo(i);
+
+                        Console.WriteLine("Enters numbers of hosts in subnet no possible.");
+                        Console.WriteLine($"Only {possibleHostCount} host(s) availabel on the while network.\n");
+                        Console.Write($"Enter subnet name... {info.name}\n");
+                    }
+
+                    
+
+                    //Asks user to enter the number of hosts, for the new subnet.
+                    Console.Write("Enter number of hosts... ");
+                    info.hosCount = int.Parse(Console.ReadLine());
+                    info.predictedAssignedRange = PredictNeededIpRange(info.hosCount);
+                } while (!IsHostWishPossible(info.hosCount));
 
                 //Adds the information to the list.
                 subnets.Add(info);
+
+                possibleHostCount -= PredictNeededIpRange(info.hosCount);
             }
         }
 
@@ -270,6 +332,110 @@ namespace IPv4SubnetCalculator
             {
                 Console.WriteLine($"{label,-30} : {ipString,-35}");
             }
+        }
+
+        private bool IsEnteredBaseNetworkValid(string ip, int prefix)
+        {
+            if(!IsEnteredIpValid(ip) || !IsValidPrefix(prefix))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Check if a given subnet prefix is valid.
+        /// </summary>
+        /// <param name="prefix"></param>
+        /// <returns></returns>
+        private bool IsValidPrefix(int prefix)
+        {
+            if(prefix >= 0 && prefix <= 30)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if a give IP address is valid.
+        /// </summary>
+        /// <param name="enteredIp"></param>
+        /// <returns></returns>
+        private bool IsEnteredIpValid(string enteredIp)
+        {
+            string[] stringParts = enteredIp.Split('.');
+            try
+            {
+                foreach (string part in stringParts)
+                {
+                    int i = int.Parse(part);
+
+                    if (i < 0 || i > 255)
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Determines whether or not a subnet can fit in the network, based on the amount of hosts it needs.
+        /// </summary>
+        /// <param name="neededNumberOfHosts"></param>
+        /// <returns></returns>
+        private bool IsHostWishPossible(int neededNumberOfHosts)
+        {
+            if (possibleHostCount - PredictNeededIpRange(neededNumberOfHosts) < 0)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Prints the header with information, when entering subnet information.
+        /// </summary>
+        /// <param name="i"></param>
+        private void PrintSubnetSetUpInfo(int i)
+        {
+            Console.Clear();
+            PrintBaseNetworkInfo();
+
+            Console.WriteLine($"\nPossible hosts remaining: {possibleHostCount}");
+
+            Console.WriteLine($"\n\nEnter info for subnet ({i + 1}/{numberOfSubnets})...");
+
+            for (int y = 0; y < subnets.Count(); y++)
+            {
+                Console.WriteLine($"  {y + 1}. {subnets[y].name,-10}{subnets[y].hosCount, -10}(Predicted IP range: {subnets[y].predictedAssignedRange})");
+            }
+
+            Console.WriteLine();
+        }
+
+        /// <summary>
+        /// Predicts the number of IP address a subnet is going to need, based in binary table.
+        /// The output includes Network id address and Broadcast address.
+        /// </summary>
+        /// <param name="numberOfHosts"></param>
+        /// <returns></returns>
+        private int PredictNeededIpRange(int numberOfHosts)
+        {
+            int hostBitsNeeded = (int)Math.Ceiling(Math.Log2(numberOfHosts + 2));
+            int newPrefix = 32 - hostBitsNeeded;
+            int subnetSize = (int)Math.Pow(2, hostBitsNeeded);
+
+            return subnetSize;
         }
     }
 }
